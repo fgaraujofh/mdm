@@ -163,3 +163,5 @@ dataset/
 *.7z
 *.csv
 paswd.txt
+output/*
+graphframes_cps/*
