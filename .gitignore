@@ -165,3 +165,4 @@ dataset/
 paswd.txt
 output/*
 graphframes_cps/*
+metastore_db/*
