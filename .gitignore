@@ -166,3 +166,5 @@ paswd.txt
 output/*
 graphframes_cps/*
 metastore_db/*
+graphframes_cps_1m/*
+graphframes_cps_30m/*
