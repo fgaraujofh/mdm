@@ -13,7 +13,8 @@ valid_credentials = [
     ("asmith", "password123"),
     ("mjackson", "thriller"),
     ("lucas", "entra@CNJ"),
-    ("chico", "entra@CNJ")
+    ("chico", "entra@CNJ"),
+    ("augusto", "entra@CNJ")
 ]
 
 

@@ -14,6 +14,22 @@ def monta_query_universo_embeddings(cep):
     """ 
     return query
 
+# Query para consultar todas embeddings na lista de IDs
+def monta_query_embeddings(ids):
+    ids_str = "', '".join(ids)
+    query = f"""
+    SELECT embeddings.id,
+           embeddings.nomefantasia,
+           embeddings.embeddings
+    FROM embeddings
+    WHERE embeddings.id IN ('{ids_str}')
+    """ 
+    return query
+
+def consulta_embeddings(ids, engine):
+    df = pd.read_sql_query(monta_query_embeddings(ids), engine)
+    return df
+    
 # Monta querys CNPJs Alvos
 def monta_query_cnpj_alvo(cnpj_alvo):
     # Transformando a lista cnpj_alvo em uma string adequada para a cláusula IN
@@ -75,14 +91,18 @@ def consulta_nodes(ids, engine):
 
 def copara_empresa(ids, engine):
     df_emp = pd.read_sql_query(monta_query_nodes(ids), engine)
-    if len(df_emp) < 2:
-        return {}  # Retorna uma estrutura vazia se não houver pelo menos 2 registros
-   
-    # Extrai os dicionários dos dois registros
-    registro1_emp = df_emp.iloc[0]['te_dados_em']
-    registro1_es = df_emp.iloc[0]['te_dados_es']
-    registro2_emp = df_emp.iloc[1]['te_dados_em']
-    registro2_es = df_emp.iloc[1]['te_dados_es']
+    if len(df_emp) == 0:
+        return {}  
+    elif len(df_emp) == 1:
+        registro1_emp = df_emp.iloc[0]['te_dados_em']
+        registro1_es = df_emp.iloc[0]['te_dados_es']
+        registro2_emp = df_emp.iloc[0]['te_dados_em']
+        registro2_es = df_emp.iloc[0]['te_dados_es']
+    else:
+        registro1_emp = df_emp.iloc[0]['te_dados_em']
+        registro1_es = df_emp.iloc[0]['te_dados_es']
+        registro2_emp = df_emp.iloc[1]['te_dados_em']
+        registro2_es = df_emp.iloc[1]['te_dados_es']
     
     # Inicializa a estrutura que armazenará os campos lado a lado
     comparacao = {}

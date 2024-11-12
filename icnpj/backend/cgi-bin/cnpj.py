@@ -3,6 +3,7 @@ from query import consulta_socios_alvo
 from query import consulta_embeddings_universo
 from query import consulta_nodes
 from query import copara_empresa
+from query import consulta_embeddings
 
 from sqlalchemy import create_engine
 import pandas as pd
@@ -26,6 +27,17 @@ def similariedade(df_sim, id_localizados, ids_alvos):
     else:
         return '-'
 
+# Calcula sililariedade de nome
+def similariedade_total(matriz, df_vert, df_hori, nome_chave_id, id_vert, id_hori):
+    try:
+        ordenada = df_vert[df_vert[nome_chave_id] == id_vert].index[0]
+        abscissa = df_hori[df_hori[nome_chave_id] == id_hori].index[0]
+        valor_sim = matriz[ordenada, abscissa]
+        valor_formatado = f"{valor_sim * 100:.2f}%"  # Considerando apenas o primeiro valor encontrado
+    except (IndexError, KeyError, ValueError):
+        valor_formatado = '-' 
+    return valor_formatado
+
 def investiga(cnpjs):
     cnpjs_list = cnpjs.split(",")
     cnpj_alvo = [cnpj.strip() for cnpj in cnpjs_list if cnpj.strip()]
@@ -35,19 +47,17 @@ def investiga(cnpjs):
 
     # consulta empresas alvo no banco de dados
     socios_alvo_final = consulta_socios_alvo(cnpj_alvo, engine)
+    if socios_alvo_final.empty:
+        raise ValueError("CNPJ(s) '{cnpjs}' não localizado(s).")
 
     cep_distintos = socios_alvo_final['cep'].drop_duplicates().tolist()
     embeddings_universo = consulta_embeddings_universo(cep_distintos, engine)
 
     # Recupera nomes Alvo para crusamento
-    socios_alvo_final_nome = socios_alvo_final.dropna(subset=['nomeFantasia'])
-    socios_alvo_final_nome = socios_alvo_final_nome[socios_alvo_final_nome['nomeFantasia'].str.strip() != '']
-    nomes_alvo = socios_alvo_final_nome['nomeFantasia'].tolist()
+    # ids_alvo = socios_alvo_final[socios_alvo_final['nomeFantasia'].str.strip() != '']['id'].tolist()
+    ids_alvo = socios_alvo_final['id'].tolist()
 
-    # Recuperando embeddings para nomes_Alvos
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-    embeddings_alvo = model.encode(nomes_alvo)
+    df_embeddings_alvo = consulta_embeddings(ids_alvo, engine)
 
     # Gera matriz de similiariedade com nomes localizados 
     from sklearn.metrics.pairwise import cosine_similarity
@@ -56,6 +66,8 @@ def investiga(cnpjs):
     # Converter os embeddings para um formato compatível com o cosine_similarity
     embeddings = np.array(embeddings_universo['embeddings'])
     embeddings =  np.vstack(embeddings)
+    embeddings_alvo = np.array(df_embeddings_alvo['embeddings'])
+    embeddings_alvo = np.vstack(embeddings_alvo)
 
     # Calcular a matriz de similaridade usando cosine_similarity
     matriz_similaridade = cosine_similarity(embeddings_alvo, embeddings)
@@ -66,7 +78,7 @@ def investiga(cnpjs):
     # Obter os valores de similaridade a partir de matriz_similaridade utilizando as colunas ordenadas e abscissas
     valores_sim = matriz_similaridade[ordenadas, abscissas]
     ids_localizados = embeddings_universo.iloc[abscissas]['id'].values
-    ids_alvos = socios_alvo_final_nome.iloc[ordenadas]['id'].values
+    ids_alvos = df_embeddings_alvo.iloc[ordenadas]['id'].values
 
     # Criar o DataFrame df_sim
     df_sim = pd.DataFrame({
@@ -106,7 +118,7 @@ def investiga(cnpjs):
             resultado_telefone = te_dados_es_alvos['telefone1'] == te_dados_es_localizados['telefone1'] 
             resultado_email = te_dados_es_alvos['email'] == te_dados_es_localizados['email'] 
             resultado_cnae = te_dados_es_alvos['cnaeFiscal'] == te_dados_es_localizados['cnaeFiscal'] 
-            resultado_nomeSim = similariedade(df_sim, id_localizados, id_alvo)
+            resultado_nomeSim = similariedade_total(matriz_similaridade, df_embeddings_alvo, embeddings_universo, 'id', id_alvo, id_localizados)
             resultado_nomeFantasia =  te_dados_es_localizados['nomeFantasia']
             
             # Adicionar resultados à lista
