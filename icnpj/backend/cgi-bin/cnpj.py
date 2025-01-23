@@ -4,9 +4,12 @@ from query import consulta_embeddings_universo
 from query import consulta_nodes
 from query import copara_empresa
 from query import consulta_embeddings
+from query import consulta_relacao_societaria
 
 from sqlalchemy import create_engine
 import pandas as pd
+import re
+
 
 string_conexao='postgresql+psycopg2://postgres:postgres@prata04.cnj.jus.br:5432/MDM'
 symilarity_threshold = .9
@@ -39,7 +42,9 @@ def similariedade_total(matriz, df_vert, df_hori, nome_chave_id, id_vert, id_hor
     return valor_formatado
 
 def investiga(cnpjs):
-    cnpjs_list = cnpjs.split(",")
+
+    cnpjs_processado = processar_cnpjs(cnpjs) 
+    cnpjs_list = cnpjs_processado.split(",")
     cnpj_alvo = [cnpj.strip() for cnpj in cnpjs_list if cnpj.strip()]
 
     # Cria uma string de conexão
@@ -48,7 +53,7 @@ def investiga(cnpjs):
     # consulta empresas alvo no banco de dados
     socios_alvo_final = consulta_socios_alvo(cnpj_alvo, engine)
     if socios_alvo_final.empty:
-        raise ValueError("CNPJ(s) '{cnpjs}' não localizado(s).")
+        raise ValueError(f"CNPJ(s) '{cnpjs}' não localizado(s).")
 
     cep_distintos = socios_alvo_final['cep'].drop_duplicates().tolist()
     embeddings_universo = consulta_embeddings_universo(cep_distintos, engine)
@@ -104,7 +109,7 @@ def investiga(cnpjs):
         
         # DataFrame para armazenar os resultados desta linha de df_id_alvos
         df_resultado = {'id_alvo': [], 'id': [], 'cep': [], 'logradouro': [], 'cpfResponsavel': [], 'telefone1': [], 
-                        'email': [], 'cnae': [], 'nomeSim': [], 'nomeFantasia': []}    
+                        'email': [], 'cnae': [], 'nomeSim': [], 'nomeFantasia': [], 'tp_socio': []}    
         # Iterar sobre cada linha de df_id_localizados para comparar com a linha atual de df_id_alvos
         for indice_localizados, linha_localizados in df_id_localizados.iterrows():
             id_localizados = linha_localizados['id']
@@ -116,7 +121,7 @@ def investiga(cnpjs):
             resultado_logradouro = te_dados_es_alvos['logradouro'] == te_dados_es_localizados['logradouro'] 
             resultado_cpf = te_dados_em_alvos['cpfResponsavel'] == te_dados_em_localizados['cpfResponsavel'] 
             resultado_telefone = te_dados_es_alvos['telefone1'] == te_dados_es_localizados['telefone1'] 
-            resultado_email = te_dados_es_alvos['email'] == te_dados_es_localizados['email'] 
+            resultado_email = te_dados_es_alvos['email'].upper() == te_dados_es_localizados['email'].upper() 
             resultado_cnae = te_dados_es_alvos['cnaeFiscal'] == te_dados_es_localizados['cnaeFiscal'] 
             resultado_nomeSim = similariedade_total(matriz_similaridade, df_embeddings_alvo, embeddings_universo, 'id', id_alvo, id_localizados)
             resultado_nomeFantasia =  te_dados_es_localizados['nomeFantasia']
@@ -132,6 +137,7 @@ def investiga(cnpjs):
             df_resultado['cnae'].append(resultado_cnae)
             df_resultado['nomeSim'].append(resultado_nomeSim)
             df_resultado['nomeFantasia'].append(resultado_nomeFantasia)
+            df_resultado['tp_socio'].append(consulta_relacao_societaria(id_alvo, id_localizados, engine))
         
         # Criar DataFrame com os resultados desta linha de df_id_alvos
         df_resultado = pd.DataFrame(df_resultado)
@@ -154,3 +160,9 @@ def compara(cnpjs):
 
     return response_data
 
+def processar_cnpjs(cnpj_input):
+    cnpjs_processados = [
+        re.sub(r"\D", "", cnpj)[:8]  # Remove caracteres não numéricos e pega os 8 primeiros dígitos
+        for cnpj in cnpj_input.split(",")
+    ]
+    return ",".join(cnpjs_processados)  # Junta os valores separados por vírgula

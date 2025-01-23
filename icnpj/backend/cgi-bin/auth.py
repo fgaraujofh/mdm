@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 # Simulação de um armazenamento de tokens simples
 active_tokens = {}
 timeout_in_hour = 6
-DEBUG=True
+DEBUG=False
 
 valid_credentials = [
     ("jdoe", "s3cret"),

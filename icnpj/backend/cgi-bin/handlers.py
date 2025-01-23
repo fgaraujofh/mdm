@@ -86,7 +86,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            return json.dumps({"error": "Permission Denied"})
+            return json.dumps({"error": "Permissão Negada"})
 
         token = create_token_for_user(username)
         self.send_response(200)
@@ -103,7 +103,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            return json.dumps({"error": "Permission Denied"})
+            self.wfile.write(json.dumps({"error": "Permissão negada"}).encode("utf-8"))
+            return
 
         cnpjs = self.form_data.get("cnpjs")
         if not cnpjs:
@@ -112,15 +113,26 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            return json.dumps({"error": "No CNPJs provided"})
+            self.wfile.write(json.dumps({"error": "Nenhum CNPJ informado"}).encode("utf-8"))
+            return 
 
-        response_data = investiga(cnpjs)
-
-        self.send_response(200)
-        self._set_cors_headers()
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        return json.dumps(response_data)
+        try:
+            response_data = investiga(cnpjs)
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode("utf-8"))
+            return
+            
+        except ValueError as e:
+            # Captura a exceção e retorna como resposta JSON
+            self.send_response(400)
+            self._set_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return  # Retorna explicitamente após erro
 
     def handle_compare(self):
         token = self.headers.get("Authorization")
@@ -130,7 +142,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            return json.dumps({"error": "Permission Denied"})
+            return json.dumps({"error": "Permissão negada"})
 
         cnpjs = self.form_data.get("cnpjs")
         if not cnpjs:

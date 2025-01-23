@@ -1,5 +1,8 @@
 from sqlalchemy import create_engine
+from sqlalchemy import text
 import pandas as pd
+
+DEBUG=False
 
 # Query para consultar todas embeddings de empresas por CEP
 def monta_query_universo_embeddings(cep):
@@ -61,6 +64,34 @@ def monta_query_nodes(id):
     """ 
     return query
 
+# Query para verficar relação societária
+def monta_query_relacao_societaria(p1, p2):
+    query = text("""
+        SELECT COUNT(*) 
+        FROM edges
+        WHERE (edges.src = :p1 AND edges.dst = :p2) OR 
+              (edges.dst = :p1 AND edges.src = :p2)
+    """)
+    params = {"p1": p1, "p2": p2}
+    return query, params
+
+def consulta_relacao_societaria(p1, p2, engine):
+    # Se forem a mesma pessoa, retorna 2
+    if p1 == p2:
+        return 2
+
+    # Monta a query para verificar relação societária
+    query, params = monta_query_relacao_societaria(p1, p2)
+        
+    with engine.connect() as conn:
+        result = conn.execute(query, params).scalar()
+
+    if(DEBUG):
+        print(f"Parâmetros: {params}")
+        print(f"Resultado : {result}")
+
+    # Retorna 1 se forem sócios, 0 caso contrário
+    return 1 if result > 0 else 0
 
 
 def consulta_socios_alvo(cnpj_alvo, engine):

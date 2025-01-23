@@ -8,9 +8,34 @@ $(document).ready(function() {
         $("#consulta_card").show();
     }
 
+    // Função de logout
+    $("#sair").click(function(e) {
+        e.preventDefault();
+
+        // Limpa todas as mensagens antes de sair
+        limparMensagensTela();
+        esvaziarTabelas();
+        
+        // Remover o token do localStorage
+        localStorage.removeItem("auth_token");
+        // Esconder o div de consulta
+        $("#consulta_card").hide();
+        // Mostrar o div de login
+        $("#login-card").fadeIn("normal");
+
+        // Exibir uma mensagem de logout bem-sucedido
+        $("#alert-message").removeClass("alert-danger").addClass("alert-success");
+        $("#alert-message").text("Você saiu com sucesso.").show();
+    });
+
+    
     // Função de login
     $("#login").click(function(e) {
         e.preventDefault();
+
+        // Limpa as mensagens antes de exibir qualquer nova
+        limparMensagensTela();
+        esvaziarTabelas();
 
         $.ajax({
             type: "POST",
@@ -43,10 +68,19 @@ $(document).ready(function() {
     $("#consulta").click(function(e) {
         e.preventDefault();
 
+        // Limpa as mensagens antes de exibir qualquer nova
+        limparMensagensTela();
+        // Limpa o contêiner de tabelas antes de renderizar novas tabelas
+        esvaziarTabelas();
+
         if (!token) {
             $("#error-message-consulta").addClass("alert-danger").text("Token de autenticação não encontrado. Faça login novamente.").show();
             return;
         }
+
+        // Exibe o ícone de carregamento e desativa os botões
+        $("#loading").show();
+        $("#consulta, #sair").prop("disabled", true);
 
         $.ajax({
             type: "POST",
@@ -64,28 +98,44 @@ $(document).ready(function() {
                 // Parseando o JSON retornado
                 const jsonResponse = response;
 
-                // Limpa o contêiner de tabelas antes de renderizar novas tabelas
-                $("#tabelas-container").empty();
+                let primeiroAlvo = true;  // Flag para verificar a primeira ocorrência
+                let totalAlvos = Object.keys(jsonResponse).length;  // Quantidade de alvos
 
                 // Iterar sobre cada "Alvo" no JSON
                 Object.keys(jsonResponse).forEach(function(alvo) {
                     const data = jsonResponse[alvo];  // Conjunto de dados para o "Alvo" atual
+                    let tableHTML = "";
 
-                    // Adicionar um título para o alvo
-                    let tableHTML = `<h3>${alvo}</h3>`;
+                     // Criar o título do Alvo (h3)
+                    if (primeiroAlvo) {
+                        let totalItensPrimeiroAlvo = data.length;  // Número de itens do primeiro alvo
 
+                        tableHTML += `
+                            <h3 class="d-flex justify-content-between align-items-center">
+                                <span>${formatarTextoAlvo(alvo)}</span>
+                                <span>
+                                    <i class="fas fa-crosshairs text-danger" data-bs-toggle="tooltip" title="PJs Alvo"></i> ${totalAlvos} 
+                                    <i class="fas fa-search text-primary" data-bs-toggle="tooltip" title="PJs Localizadas"></i> ${totalItensPrimeiroAlvo}
+                                </span>
+                            </h3>
+                        `;
+                        primeiroAlvo = false;  // Marcar que já tratamos o primeiro alvo
+                    } else {
+                        tableHTML += `<h3>${formatarTextoAlvo(alvo)}</h3>`;
+                    }
+                    
                     // Criar a tabela com cabeçalho
                     tableHTML += `
                         <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>CEP</th>
-                                    <th>Logradouro</th>
-                                    <th>CPF Responsável</th>
-                                    <th>Telefone 1</th>
-                                    <th>Email</th>
-                                    <th>CNAE</th>
+                                    <th class="text-center">CEP</th>
+                                    <th class="text-center">Logradouro</th>
+                                    <th class="text-center">CPF Responsável</th>
+                                    <th class="text-center">Telefone 1</th>
+                                    <th class="text-center">Email</th>
+                                    <th class="text-center">CNAE</th>
                                     <th>Nome Sim</th>
                                     <th>Nome Fantasia</th>
                                     <th>Detalhe</th>
@@ -96,15 +146,33 @@ $(document).ready(function() {
 
                     // Iterar sobre cada item nos dados do "Alvo"
                     data.forEach(function(item) {
+                        let iconSocio = "";
+                        let tooltipText = "";
+                        let tdClass = "";  // Classe CSS do <td>
+
+                        if (item.tp_socio === 0) {
+                            iconSocio = '<i class="fas fa-unlock text-danger"></i>';  // Cadeado aberto → PJs não sócias
+                            tooltipText = "PJs não sócias";
+                            tdClass = "text-danger"; 
+                        } else if (item.tp_socio === 1) {
+                            iconSocio = '<i class="fas fa-lock text-success"></i>';  // Cadeado fechado → PJs sócias
+                            tooltipText = "PJs sócias";
+                            tdClass = "";  // Mantém padrão
+                        } else if (item.tp_socio === 2) {
+                            iconSocio = '<i class="fas fa-equals text-primary"></i>';  // Apenas o símbolo de igualdade;
+                            tooltipText = "Mesma PJ";
+                            tdClass = "text-muted";  // Texto cinza
+                        }
+
                         tableHTML += `
                             <tr>
-                                <td>${item.id}</td>
-                                <td>${item.cep ? "✔️" : "❌"}</td>
-                                <td>${item.logradouro ? "✔️" : "❌"}</td>
-                                <td>${item.cpfResponsavel ? "✔️" : "❌"}</td>
-                                <td>${item.telefone1 ? "✔️" : "❌"}</td>
-                                <td>${item.email ? "✔️" : "❌"}</td>
-                                <td>${item.cnae ? "✔️" : "❌"}</td>
+                                <td class="${tdClass}" title="${tooltipText}">${iconSocio} ${formatarCNPJ(item.id)}</td>
+                                <td class="text-center">${item.cep ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.logradouro ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.cpfResponsavel ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.telefone1 ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.email ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.cnae ? "✔️" : "❌"}</td>
                                 <td>${item.nomeSim}</td>
                                 <td>${item.nomeFantasia}</td>
                                 <td>
@@ -126,14 +194,20 @@ $(document).ready(function() {
                     $("#tabelas-container").append(tableHTML);
                 });
 
-                $("#error-message-consulta").hide();
+                // Agora que os dados foram montados, escondemos o loading
+                $("#loading").hide();
+                $("#consulta, #sair").prop("disabled", false);
             },
             error: function(xhr, status, error) {
-                const response_parsed = JSON.parse(xhr.responseText);
-                $("#error-message-consulta").addClass("alert-danger").text(response_parsed.error).show();
-                localStorage.removeItem("auth_token");
-                $("#login-card").show();
-                $("#consulta_card").hide();
+                 // Esconde o loading e reativa os botões ao detectar erro
+                $("#loading").hide();
+                $("#consulta, #sair").prop("disabled", false);
+                try {
+                    const response_parsed = JSON.parse(xhr.responseText);
+                    $("#error-message-consulta").addClass("alert-danger").text(response_parsed.error).show();
+                } catch (e) {
+                    $("#error-message-consulta").addClass("alert-danger").text("Erro desconhecido ao processar a requisição.").show();
+                }
             }
         });
         return false;
@@ -210,6 +284,7 @@ function abrirTR(trId, button, token) {
                 addRow("Capital Social", formatarMoeda(dadosEm.capitalSocial.registro1), formatarMoeda(dadosEm.capitalSocial.registro2));
                 addRow("Porte Empresa", formatarPorte(dadosEm.porteEmpresa.registro1), formatarPorte(dadosEm.porteEmpresa.registro2));
                 addRow("Natureza Jurídica", formataNatureza(dadosEm.naturezaJuridica.registro1), formataNatureza(dadosEm.naturezaJuridica.registro2));
+                addRow("CNAE Fiscal", dadosEs.cnaeFiscal.registro1, dadosEs.cnaeFiscal.registro2);
                 
                 // addRow("Tipo Logradouro", dadosEs.tipoLogradouro.registro1, dadosEs.tipoLogradouro.registro2);
                 addRow("UF", dadosEs.uf.registro1, dadosEs.uf.registro2);
@@ -378,6 +453,21 @@ function formatarCNPJ(cnpjBase) {
     return cnpjFormatado;
 }
 
+function formatarTextoAlvo(texto) {
+    // Expressão regular para capturar o número de 8 dígitos e qualquer texto após o hífen
+    const regex = /^Alvo = (\d{8}) - (.*)$/;
+    const match = texto.match(regex);
+
+    if (match) {
+        const cnpjBase = match[1]; // Captura o número de 8 dígitos
+        const textoAposHifen = match[2]; // Captura o texto após o hífen
+        const cnpjFormatado = formatarCNPJ(cnpjBase); // Formata o CNPJ
+        return `Alvo = ${cnpjFormatado} - ${textoAposHifen}`; // Retorna a string formatada
+    } else {
+        return texto; // Retorna o texto original se não corresponder ao padrão esperado
+    }
+}
+
 function formatarClassificacaoResponsavel(codigoClassificacao) {
     // Mapeamento dos códigos de classificação para suas descrições
     const classificacoes = {
@@ -437,4 +527,16 @@ function formatarSituacaoCadastral(codigoSituacao) {
     } else {
         return codigoSituacao;
     }
+}
+
+function limparMensagensTela() {
+    // Esconder mensagens de erro e alerta
+    $("#error-message").hide().text("");
+    $("#error-message-consulta").hide().text("");
+    $("#alert-message").hide().text("");
+}
+
+function esvaziarTabelas(){
+    // Limpa o contêiner de tabelas antes de renderizar novas tabelas
+    $("#tabelas-container").empty();
 }
