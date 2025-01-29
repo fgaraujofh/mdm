@@ -1,6 +1,7 @@
 # handlers.py
 import os
 import json
+import logging
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qsl, urlparse
 from functools import cached_property
@@ -42,7 +43,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
         # Constrói o caminho completo do arquivo
         filepath = os.path.join(self.STATIC_DIR, static_path)
-        print(filepath)
+        # print(filepath)
         
         if not os.path.exists(filepath):
             self.send_response(404)
@@ -81,6 +82,9 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         username = self.form_data.get("username")
         password = self.form_data.get("password")
 
+        # Imprime diretamente no log do servidor
+        self.log_message("Login | user: %s", username)
+
         if not check_credentials(username, password):
             self.send_response(403)
             self._set_cors_headers()
@@ -107,6 +111,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return
 
         cnpjs = self.form_data.get("cnpjs")
+        self.log_message("search | %s", cnpjs)
         if not cnpjs:
             self.send_response(400)
             self._set_cors_headers()
@@ -145,16 +150,18 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return json.dumps({"error": "Permissão negada"})
 
         cnpjs = self.form_data.get("cnpjs")
+        self.log_message("compare | %s", cnpjs)
         if not cnpjs:
             self.send_response(400)
             self._set_cors_headers()
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            return json.dumps({"error": "No CNPJs provided"})
+            return json.dumps({"error": "CNPJs não fornecidos"})
 
+        
         response_data = compara(cnpjs)
-
+        
         self.send_response(200)
         self._set_cors_headers()
         self.send_header("Content-Type", "application/json")
@@ -181,6 +188,45 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return "<html><body><h1>404 Not Found</h1><p>The requested page was not found on this server.</p></body></html>"
 
+    def handle_log_acao(self):
+        """Recebe os cliques de Like/Dislike e imprime no log do servidor."""
+        try:
+            # Lê os dados enviados via POST
+            dados = json.loads(self.post_data)
+            acao = dados.get("acao")
+            cnpjs = dados.get("cnpjs")
+
+            # Imprime diretamente no log do servidor
+            self.log_message("%s | CNPJs: %s", acao, cnpjs)
+
+            # Responde com sucesso
+            self.send_response(200)
+            self._set_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "Log registrado"}).encode("utf-8"))
+
+        except (json.JSONDecodeError, ValueError) as e:
+            self.send_response(400)
+            self._set_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+
+    def handle_favicon(self):
+        """Serve o favicon.ico se solicitado."""
+        favicon_path = os.path.join(self.STATIC_DIR, "favicon.ico")
+        
+        if os.path.exists(favicon_path):
+            self.send_response(200)
+            self.send_header("Content-Type", "image/x-icon")
+            self.end_headers()
+            with open(favicon_path, "rb") as file:
+                self.wfile.write(file.read())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def get_response(self):
         if self.url.path == "/":
             return self.handle_homepage()
@@ -190,6 +236,10 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return self.handle_search()
         elif self.url.path == "/compare":
             return self.handle_compare()
+        elif self.url.path == "/log_acao":  
+            return self.handle_log_acao()
+        elif self.url.path == "/favicon.ico":  # Nova rota para favicon
+            return self.handle_favicon()
         elif self.url.path.startswith("/static/"):
             # Servir arquivos estáticos
             self.serve_static_file(self.url.path)

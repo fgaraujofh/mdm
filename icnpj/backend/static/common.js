@@ -114,6 +114,8 @@ $(document).ready(function() {
                             <h3 class="d-flex justify-content-between align-items-center">
                                 <span>${formatarTextoAlvo(alvo)}</span>
                                 <span>
+                                    <i id="like-icon" class="far fa-thumbs-up text-success me-2" onclick="toggleLike()" data-bs-toggle="tooltip" title="Marcar como útil"></i>
+                                    <i id="dislike-icon" class="far fa-thumbs-down text-danger me-3" onclick="toggleDislike()" data-bs-toggle="tooltip" title="Não é relevante"></i>
                                     <i class="fas fa-crosshairs text-danger" data-bs-toggle="tooltip" title="PJs Alvo"></i> ${totalAlvos} 
                                     <i class="fas fa-search text-primary" data-bs-toggle="tooltip" title="PJs Localizadas"></i> ${totalItensPrimeiroAlvo}
                                 </span>
@@ -136,6 +138,7 @@ $(document).ready(function() {
                                     <th class="text-center">Telefone 1</th>
                                     <th class="text-center">Email</th>
                                     <th class="text-center">CNAE</th>
+                                    <th class="text-center">Sócios Comuns</th>
                                     <th>Nome Sim</th>
                                     <th>Nome Fantasia</th>
                                     <th>Detalhe</th>
@@ -173,14 +176,15 @@ $(document).ready(function() {
                                 <td class="text-center">${item.telefone1 ? "✔️" : "❌"}</td>
                                 <td class="text-center">${item.email ? "✔️" : "❌"}</td>
                                 <td class="text-center">${item.cnae ? "✔️" : "❌"}</td>
+                                <td class="text-center">${item.scomum ? "✔️" : "❌"}</td>
                                 <td>${item.nomeSim}</td>
                                 <td>${item.nomeFantasia}</td>
                                 <td>
-                                    <button class="btn btn-secondary btn-sm" onclick="abrirTR('tabela_${item.id_alvo}_${item.id}', this, '${token}')">&#9660;</button>
+                                    <button class="btn btn-secondary btn-sm" title="Detalhes" onclick="abrirTR('tabela_${item.id_alvo}_${item.id}', 'socios_${item.id_alvo}_${item.id}', this, '${token}')">&#9660;</button>
                                 </td>
                             </tr>
-                            <tr id="tabela_${item.id_alvo}_${item.id}" style="display: none;">
-                            </tr>
+                            <tr id="tabela_${item.id_alvo}_${item.id}" style="display: none;"></tr>
+                            <tr id="socios_${item.id_alvo}_${item.id}" style="display: none;"></tr>
                         `;
                     });
 
@@ -215,8 +219,9 @@ $(document).ready(function() {
 });
 
 // Função abrir TR de comparacao
-function abrirTR(trId, button, token) {
+function abrirTR(trId, trSociosId, button, token) {
     const trElement = document.getElementById(trId);
+    const sociosTrElement = document.getElementById(trSociosId);
 
     // Verificar se o <tr> já possui conteúdo
     if (trElement.innerHTML.trim() === "") {
@@ -306,36 +311,91 @@ function abrirTR(trId, button, token) {
                 // Exibir o conteúdo no <tr> abaixo do botão clicado
                 trElement.innerHTML = tableContent;
                 $(trElement).show();  // Mostrar o <tr>
+
+                 // Atualizar os sócios comuns na tabela "socios-comuns"
+                 const sociosComuns = response.socios_comuns;
+                 let sociosTableContent = `
+                     <td colspan="100%">
+                     <table class="table table-sm">
+                        <caption style="caption-side: top;">
+                            <strong>Sócios compartilhados entre as empresas ${formatarCNPJ(ids[0])} e ${formatarCNPJ(ids[1])}</strong>
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th>Código da Pessoa</th>
+                                <th>Tipo da Pessoa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                 `;
+                 if (sociosComuns.length > 0) {
+                    sociosComuns.forEach(socio => {
+                        let codigoPessoa = socio.socios;
+                        let tipoPessoa = socio.tp_socio === "1" ? "Pessoa Jurídica" : "Pessoa Física";
+
+                        // Formatar CNPJ ou CPF corretamente
+                        if (socio.tp_socio === "1") {
+                            codigoPessoa = formatarCNPJ(codigoPessoa);
+                        } else {
+                            codigoPessoa = formatarCPF(codigoPessoa);
+                        }
+
+                        sociosTableContent += `
+                            <tr>
+                                <td>${codigoPessoa}</td>
+                                <td>${tipoPessoa}</td>
+                            </tr>
+                        `;
+                    });
+
+                    sociosTableContent += `</tbody></table><td>`;
+
+                    sociosTrElement.innerHTML = sociosTableContent;
+                    $(sociosTrElement).show();  // Exibe o <tr>
+                }
             },
             error: function(xhr, status, error) {
                 const response_parsed = JSON.parse(xhr.responseText);
                 alert("Erro ao buscar a comparação: " + response_parsed.error);
             }
         });
-        }
+    }
 
     // Exibe o trElement
     trElement.style.display = 'table-row';
+    sociosTrElement.style.display = 'table-row';
     // Altera o botão para mostrar a seta para cima
     button.innerHTML = '&#9650;'; // Seta para cima
-    // Altera a função onclick para fechar o div
-    button.setAttribute('onclick', `fecharTR('${trId}', this, '${token}')`);
+    // Altera a função onclick para fechar o TR
+    button.setAttribute('onclick', `fecharTR('${trId}', '${trSociosId}', this, '${token}')`);
 }
     
 // Função para fechar o div e alterar a seta
-function fecharTR(trId, button, token) {
+function fecharTR(trId, trSociosId, button, token) {
     var trElement = document.getElementById(trId);
-    // Oculta o div
+    var sociosTrElement = document.getElementById(trSociosId);
+
+    // Oculta o TR de detalhes
     trElement.style.display = 'none';
+
+    // Oculta a linha dos sócios em comum
+    sociosTrElement.style.display = 'none';    
+    
     // Altera o botão para mostrar a seta para baixo
     button.innerHTML = '&#9660;'; // Seta para baixo
+    
     // Altera a função onclick para abrir o div novamente
-    button.setAttribute('onclick', `abrirTR('${trId}', this, '${token}')`);
+    button.setAttribute('onclick', `abrirTR('${trId}', '${trSociosId}', this, '${token}')`);
 }
 
 function formatarCPF(cpfRaw) {
     // Remover qualquer caractere que não seja número
     cpfRaw = cpfRaw.replace(/\D/g, '');
+
+    // Se exceder 11 dígitos, pegar apenas os últimos 11
+    if (cpfRaw.length > 11) {
+        cpfRaw = cpfRaw.slice(-11);
+    }
 
     // Verificar se o CPF tem 11 dígitos
     if (cpfRaw.length !== 11) {
@@ -540,3 +600,65 @@ function esvaziarTabelas(){
     // Limpa o contêiner de tabelas antes de renderizar novas tabelas
     $("#tabelas-container").empty();
 }
+
+function toggleLike() {
+    let likeIcon = document.getElementById("like-icon");
+    let dislikeIcon = document.getElementById("dislike-icon");
+    let cnpjs = document.getElementById("lista_cnpjs").value; // Captura os CNPJs digitados
+
+    let acao = likeIcon.classList.contains("far") ? "Like" : "Like Removido";
+
+    // Alterna o ícone de like
+    likeIcon.classList.toggle("far");
+    likeIcon.classList.toggle("fas");
+    likeIcon.style.color = likeIcon.classList.contains("fas") ? "#198754" : "";
+
+    // Desativa o dislike se ativado
+    if (dislikeIcon.classList.contains("fas")) {
+        dislikeIcon.classList.remove("fas");
+        dislikeIcon.classList.add("far");
+        dislikeIcon.style.color = "";
+    }
+
+    // Enviar ação ao servidor
+    enviarLogParaServidor(acao, cnpjs);
+}
+
+function toggleDislike() {
+    let likeIcon = document.getElementById("like-icon");
+    let dislikeIcon = document.getElementById("dislike-icon");
+    let cnpjs = document.getElementById("lista_cnpjs").value; // Captura os CNPJs digitados
+
+    let acao = dislikeIcon.classList.contains("far") ? "Dislike" : "Dislike Removido";
+
+    // Alterna o ícone de dislike
+    dislikeIcon.classList.toggle("far");
+    dislikeIcon.classList.toggle("fas");
+    dislikeIcon.style.color = dislikeIcon.classList.contains("fas") ? "#dc3545" : "";
+
+    // Desativa o like se ativado
+    if (likeIcon.classList.contains("fas")) {
+        likeIcon.classList.remove("fas");
+        likeIcon.classList.add("far");
+        likeIcon.style.color = "";
+    }
+
+    // Enviar ação ao servidor
+    enviarLogParaServidor(acao, cnpjs);
+}
+
+function enviarLogParaServidor(acao, cnpjs) {
+    $.ajax({
+        type: "POST",
+        url: "/log_acao",  // Nova rota no servidor
+        data: JSON.stringify({ acao: acao, cnpjs: cnpjs }),
+        contentType: "application/json",
+        success: function(response) {
+            console.log("Log enviado ao servidor:", response);
+        },
+        error: function(xhr, status, error) {
+            console.error("Erro ao enviar log para o servidor:", error);
+        }
+    });
+}
+

@@ -2,19 +2,21 @@
 from query import consulta_socios_alvo
 from query import consulta_embeddings_universo
 from query import consulta_nodes
-from query import copara_empresa
+from query import compara_empresa
 from query import consulta_embeddings
 from query import consulta_relacao_societaria
+from query import consulta_socios_em_comum
+from query import consulta_detalhes_socios_comuns
 
 from sqlalchemy import create_engine
 import pandas as pd
 import re
 
+DEBUG=True
+
 
 string_conexao='postgresql+psycopg2://postgres:postgres@prata04.cnj.jus.br:5432/MDM'
 symilarity_threshold = .9
-
-
 
 # Calcula sililariedade de nome
 def similariedade(df_sim, id_localizados, ids_alvos):
@@ -109,7 +111,7 @@ def investiga(cnpjs):
         
         # DataFrame para armazenar os resultados desta linha de df_id_alvos
         df_resultado = {'id_alvo': [], 'id': [], 'cep': [], 'logradouro': [], 'cpfResponsavel': [], 'telefone1': [], 
-                        'email': [], 'cnae': [], 'nomeSim': [], 'nomeFantasia': [], 'tp_socio': []}    
+                        'email': [], 'cnae': [], 'scomum': [], 'nomeSim': [], 'nomeFantasia': [], 'tp_socio': []}    
         # Iterar sobre cada linha de df_id_localizados para comparar com a linha atual de df_id_alvos
         for indice_localizados, linha_localizados in df_id_localizados.iterrows():
             id_localizados = linha_localizados['id']
@@ -123,6 +125,7 @@ def investiga(cnpjs):
             resultado_telefone = te_dados_es_alvos['telefone1'] == te_dados_es_localizados['telefone1'] 
             resultado_email = te_dados_es_alvos['email'].upper() == te_dados_es_localizados['email'].upper() 
             resultado_cnae = te_dados_es_alvos['cnaeFiscal'] == te_dados_es_localizados['cnaeFiscal'] 
+            resultado_scomum = consulta_socios_em_comum(id_alvo, id_localizados, engine)
             resultado_nomeSim = similariedade_total(matriz_similaridade, df_embeddings_alvo, embeddings_universo, 'id', id_alvo, id_localizados)
             resultado_nomeFantasia =  te_dados_es_localizados['nomeFantasia']
             
@@ -135,6 +138,7 @@ def investiga(cnpjs):
             df_resultado['telefone1'].append(resultado_telefone)
             df_resultado['email'].append(resultado_email)
             df_resultado['cnae'].append(resultado_cnae)
+            df_resultado['scomum'].append(resultado_scomum)
             df_resultado['nomeSim'].append(resultado_nomeSim)
             df_resultado['nomeFantasia'].append(resultado_nomeFantasia)
             df_resultado['tp_socio'].append(consulta_relacao_societaria(id_alvo, id_localizados, engine))
@@ -156,7 +160,14 @@ def compara(cnpjs):
 
     # Cria uma string de conexão
     engine = create_engine(string_conexao)
-    response_data = copara_empresa(ids, engine)
+    
+    # Recupera detalhes da comparação
+    response_data = compara_empresa(ids, engine)
+
+    # Recupera lista de sócios comuns
+    s1, s2 = ids
+    socios_comuns = consulta_detalhes_socios_comuns(s1, s2, engine)
+    response_data["socios_comuns"] = socios_comuns
 
     return response_data
 
