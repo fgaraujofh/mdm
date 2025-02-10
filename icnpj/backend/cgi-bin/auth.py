@@ -9,7 +9,7 @@ timeout_in_hour = 6
 DEBUG=False
 
 valid_credentials = [
-    ("jdoe", "s3cret"),
+    ("thiago", "entra@CNJ"),
     ("asmith", "password123"),
     ("mjackson", "thriller"),
     ("lucas", "entra@CNJ"),
