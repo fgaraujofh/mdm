@@ -10,13 +10,13 @@ from query import consulta_detalhes_socios_comuns
 
 from sqlalchemy import create_engine
 import pandas as pd
-import re
+import re #regular expression
 
-DEBUG=True
-
+DEBUG=False
 
 string_conexao='postgresql+psycopg2://postgres:postgres@prata04.cnj.jus.br:5432/MDM'
 symilarity_threshold = .9
+hide_non_matching = True
 
 # Calcula sililariedade de nome
 def similariedade(df_sim, id_localizados, ids_alvos):
@@ -54,17 +54,28 @@ def investiga(cnpjs):
 
     # consulta empresas alvo no banco de dados
     socios_alvo_final = consulta_socios_alvo(cnpj_alvo, engine)
+    if DEBUG:
+        print("Consultei sócios alvos", flush=True)
+
     if socios_alvo_final.empty:
         raise ValueError(f"CNPJ(s) '{cnpjs}' não localizado(s).")
 
     cep_distintos = socios_alvo_final['cep'].drop_duplicates().tolist()
+    if DEBUG:
+        print(f"CEPs distintos: {', '.join(map(str, cep_distintos))}", flush=True)
+
     embeddings_universo = consulta_embeddings_universo(cep_distintos, engine)
+    if DEBUG:
+        print("Consultei embeddings do universo", flush=True)
 
     # Recupera nomes Alvo para crusamento
     # ids_alvo = socios_alvo_final[socios_alvo_final['nomeFantasia'].str.strip() != '']['id'].tolist()
     ids_alvo = socios_alvo_final['id'].tolist()
 
     df_embeddings_alvo = consulta_embeddings(ids_alvo, engine)
+    if DEBUG:
+        print("Consultei embeddings dos alvos", flush=True)
+
 
     # Gera matriz de similiariedade com nomes localizados 
     from sklearn.metrics.pairwise import cosine_similarity
@@ -78,6 +89,9 @@ def investiga(cnpjs):
 
     # Calcular a matriz de similaridade usando cosine_similarity
     matriz_similaridade = cosine_similarity(embeddings_alvo, embeddings)
+    if DEBUG:
+        print("Gerei a matriz de similaridade", flush=True)
+
 
     # Aplica limite de Similaridade
     ordenadas, abscissas = np.where(matriz_similaridade > symilarity_threshold)
@@ -108,10 +122,14 @@ def investiga(cnpjs):
         te_dados_es_alvos = linha_alvos['te_dados_es']
         te_dados_em_alvos = linha_alvos['te_dados_em']
         nome_alvo = te_dados_es_alvos['nomeFantasia']
+
+        if DEBUG:
+            print(f"Processando id_alvo {indice_alvos + 1}/{len(df_id_alvos)}: {id_alvo}", flush=True)
         
         # DataFrame para armazenar os resultados desta linha de df_id_alvos
         df_resultado = {'id_alvo': [], 'id': [], 'cep': [], 'logradouro': [], 'cpfResponsavel': [], 'telefone1': [], 
-                        'email': [], 'cnae': [], 'scomum': [], 'nomeSim': [], 'nomeFantasia': [], 'tp_socio': []}    
+                        'email': [], 'cnae': [], 'scomum': [], 'nomeSim': [], 'nomeFantasia': [], 'tp_socio': [],
+                        'hide': []}    
         # Iterar sobre cada linha de df_id_localizados para comparar com a linha atual de df_id_alvos
         for indice_localizados, linha_localizados in df_id_localizados.iterrows():
             id_localizados = linha_localizados['id']
@@ -129,6 +147,10 @@ def investiga(cnpjs):
             resultado_nomeSim = similariedade_total(matriz_similaridade, df_embeddings_alvo, embeddings_universo, 'id', id_alvo, id_localizados)
             resultado_nomeFantasia =  te_dados_es_localizados['nomeFantasia']
             
+            # Lógica para definir se vai esconder empresas sem match
+            hide = hide_non_matching and not (resultado_logradouro or resultado_cpf or resultado_telefone or resultado_email or resultado_scomum)
+        
+            
             # Adicionar resultados à lista
             df_resultado['id_alvo'].append(id_alvo)
             df_resultado['id'].append(id_localizados)
@@ -141,7 +163,8 @@ def investiga(cnpjs):
             df_resultado['scomum'].append(resultado_scomum)
             df_resultado['nomeSim'].append(resultado_nomeSim)
             df_resultado['nomeFantasia'].append(resultado_nomeFantasia)
-            df_resultado['tp_socio'].append(consulta_relacao_societaria(id_alvo, id_localizados, engine))
+            df_resultado['tp_socio'].append(consulta_relacao_societaria(id_alvo, id_localizados, engine)) 
+            df_resultado['hide'].append(hide)
         
         # Criar DataFrame com os resultados desta linha de df_id_alvos
         df_resultado = pd.DataFrame(df_resultado)

@@ -85,6 +85,7 @@ $(document).ready(function() {
         $.ajax({
             type: "POST",
             url: "/search",  // Use URL relativa
+            timeout: 300000,  // 5 minutos (300000ms)
             beforeSend: function(xhr, settings) {
                 xhr.setRequestHeader('Authorization', token);
             },
@@ -92,7 +93,7 @@ $(document).ready(function() {
                 cnpjs: $("#lista_cnpjs").val(),
             },
             success: function(response) {
-                console.log(response);
+                // console.log(response);
 
                 // Usar response para desenhar tabela ou outra exibição de dados
                 // Parseando o JSON retornado
@@ -149,6 +150,12 @@ $(document).ready(function() {
 
                     // Iterar sobre cada item nos dados do "Alvo"
                     data.forEach(function(item) {
+
+                        // Verificar se a empresa deve ser ocultada
+                        if (item.hide) {
+                            return; // Pula para o próximo item
+                        }
+
                         let iconSocio = "";
                         let tooltipText = "";
                         let tdClass = "";  // Classe CSS do <td>
