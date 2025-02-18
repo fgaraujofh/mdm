@@ -2,6 +2,8 @@
 import os
 import json
 import logging
+import gzip
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qsl, urlparse
 from functools import cached_property
@@ -162,15 +164,22 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             if DEBUG:
                 print("Voltei da investigacao", flush=True)
 
+            # 🔹 Compacta a resposta JSON com Gzip
+            buffer = BytesIO()
+            with gzip.GzipFile(fileobj=buffer, mode='wb') as gzip_file:
+                gzip_file.write(response_json)
+
+            compressed_data = buffer.getvalue()
+
             self.send_response(200)
             self._set_cors_headers()
             self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(response_json)))  # 🔹 Adiciona o Content-Length
+            self.send_header("Content-Encoding", "gzip")  # ✅ Indica compactação
+            self.send_header("Content-Length", str(len(compressed_data)))  # ✅ Define Content-Length correto
             self.send_header("Connection", "close")
             self.end_headers()
-
-            self.wfile.write(response_json)
-            self.wfile.flush()  # 🔹 Garante envio completo
+            self.wfile.write(compressed_data)
+            self.wfile.flush()
 
             return
             

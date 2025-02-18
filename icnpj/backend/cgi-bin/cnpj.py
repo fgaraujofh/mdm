@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 import pandas as pd
 import re #regular expression
 
-DEBUG=False
+DEBUG=True
 
 string_conexao='postgresql+psycopg2://postgres:postgres@prata04.cnj.jus.br:5432/MDM'
 symilarity_threshold = .9
@@ -148,7 +148,14 @@ def investiga(cnpjs):
             resultado_nomeFantasia =  te_dados_es_localizados['nomeFantasia']
             
             # Lógica para definir se vai esconder empresas sem match
-            hide = hide_non_matching and not (resultado_logradouro or resultado_cpf or resultado_telefone or resultado_email or resultado_scomum)
+            # hide = hide_non_matching and not (resultado_logradouro or resultado_cpf or resultado_telefone or resultado_email or resultado_scomum)
+            hide = hide_non_matching and not (
+                resultado_logradouro or 
+                resultado_cpf or 
+                (resultado_telefone and not (te_dados_es_alvos['telefone1'] == '' and te_dados_es_localizados['telefone1'] == '')) or 
+                (resultado_email and not (te_dados_es_alvos['email'] == '' and te_dados_es_localizados['email'] == '')) or 
+                resultado_scomum
+            )
         
             
             # Adicionar resultados à lista

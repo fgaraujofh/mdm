@@ -270,11 +270,19 @@ function abrirTR(trId, trSociosId, button, token) {
 
                 // Função para adicionar linhas à tabela
                 function addRow(campo, valor1, valor2) {
+                    let valor1Formatado = (valor1 || "").trim().toUpperCase();
+                    let valor2Formatado = (valor2 || "").trim().toUpperCase();
+
+                    // Verifica se os valores são iguais e não estão vazios
+                    let highlightClass = (valor1Formatado && valor2Formatado && valor1Formatado === valor2Formatado) 
+                        ? 'table-warning' 
+                        : '';
+
                     tableContent += `
                         <tr>
                             <td><b>${campo}</b></td>
-                            <td>${valor1 || 'N/A'}</td>
-                            <td>${valor2 || 'N/A'}</td>
+                            <td class="${highlightClass}">${valor1 || 'N/A'}</td>
+                            <td class="${highlightClass}">${valor2 || 'N/A'}</td>
                         </tr>
                     `;
                 }
