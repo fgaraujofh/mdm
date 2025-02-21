@@ -142,7 +142,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return
 
         cnpjs = self.form_data.get("cnpjs")
-        self.log_message("search | %s", cnpjs)
+        cpfs  = self.form_data.get("cpfs")
+        self.log_message("search | CNPJ: %s CPF: %s", cnpjs, cpfs)
         
         if not cnpjs:
             error_response = json.dumps({"error": "Nenhum CNPJ informado"}).encode("utf-8")
@@ -158,7 +159,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             return 
 
         try:
-            response_data = investiga(cnpjs)
+            response_data = investiga(cnpjs, cpfs)
             response_json = json.dumps(response_data).encode("utf-8")
 
             if DEBUG:

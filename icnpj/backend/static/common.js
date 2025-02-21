@@ -91,6 +91,7 @@ $(document).ready(function() {
             },
             data: {
                 cnpjs: $("#lista_cnpjs").val(),
+                cpfs: $("#lista_cpfs").val() 
             },
             success: function(response) {
                 // console.log(response);
@@ -222,6 +223,22 @@ $(document).ready(function() {
             }
         });
         return false;
+    });
+    
+    $("#toggle-cpfs").click(function() {
+        $("#cpf-section").toggle(); // Alterna a visibilidade do campo CPF
+
+        // Se ocultar o campo CPF, também apaga seu conteúdo
+        if (!$("#cpf-section").is(":visible")) {
+            $("#lista_cpfs").val("");  // Limpa o input
+        }
+
+        // Alterar o texto do botão dependendo do estado atual
+        if ($("#cpf-section").is(":visible")) {
+            $("#toggle-cpfs").html('<i class="fas fa-minus-circle"></i> Remover sócios Pessoas Físicas');
+        } else {
+            $("#toggle-cpfs").html('<i class="fas fa-plus-circle"></i> Entrar com sócios Pessoas Físicas');
+        }
     });
 });
 

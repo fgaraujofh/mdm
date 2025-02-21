@@ -14,8 +14,11 @@
             <div class="col-md-6">
                 <div class="alert" id="alert-message" style="display: none;"></div>
                 <div class="card" id="login-card">
-                    <div class="card-header">
-                        Login
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Login</span>
+                        <a href="static/ajuda.html" class="btn btn-link btn-sm">
+                            <i class="fas fa-question-circle"></i> Ajuda
+                        </a>
                     </div>
                     <div class="card-body">
                         <!-- Error Messages -->
@@ -41,10 +44,12 @@
         <div class="col-md-10">
             <div class="card" id="consulta_card" style="display: none;">
                 <div class="card-header">
-                    Consulta CNPJ
+                    Investiga CNPJ
                 </div>
                 <div class="card-body">
+                    <!--DIV para Mensagens-->
                     <div class="alert" id="error-message-consulta" style="display: none;"></div>
+                    <!---------------------->
                     <form id="consulta_form">
                         <div class="form-group">
                             <label for="lista_cnpjs">CNPJs separados por vírgula</label>
@@ -52,6 +57,21 @@
                                placeholder="Entre com Lista de CNPJs"
                                data-toggle="tooltip" data-placement="top" title="Qualquer formato é válido">
                         </div>
+
+                        <!-- Botão para ativar/desativar CPFs -->
+                        <button type="button" class="btn btn-link p-0 mb-3" id="toggle-cpfs">
+                            <i class="fas fa-plus-circle"></i> Entrar com sócios Pessoas Físicas
+                        </button>
+
+                        <div id="cpf-section" style="display: none;">
+                            <div class="form-group">
+                                <label for="lista_cpfs">CPFs separados por vírgula</label>
+                                <input type="text" class="form-control" name="lista_cpfs" id="lista_cpfs" 
+                                    placeholder="Entre com Lista de CPFs"
+                                    data-toggle="tooltip" data-placement="top" title="Qualquer formato é válido">
+                            </div>
+                        </div>
+
                         <div class="d-flex align-items-center" style="gap: 10px;">
                             <button type="submit" class="btn btn-primary" id="consulta">Enviar</button>
                             <button type="button" class="btn btn-secondary" id="sair">Sair</button>

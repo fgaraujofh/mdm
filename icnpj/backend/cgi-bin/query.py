@@ -142,7 +142,12 @@ def consulta_socios_em_comum(s1, s2, engine):
     # Retorna True se houver pelo menos um sócio em comum, False caso contrário
     return result > 0
 
-def consulta_socios_alvo(cnpj_alvo, engine):
+def consulta_socios_alvo(cnpj_alvo, engine, cpf_alvo=None):
+    socios_lista = cnpj_alvo  
+    # Se cpf_alvo for fornecido como lista, adicioná-lo à cópia de cnpj_alvo
+    if cpf_alvo:
+        socios_lista.extend(cpf_alvo) 
+
     # Separa sócios somente do tipo CNPJ, tanto na origem, como no destino
     socios_alvo = pd.read_sql_query(monta_query_cnpj_alvo(cnpj_alvo), engine)
     condicao_1 = socios_alvo[socios_alvo['src_id_tipopessoa'] == 1][['src', 'src_nome', 'src_cep', 'src_nome_em']].rename(columns={

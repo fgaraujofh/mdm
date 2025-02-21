@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 import pandas as pd
 import re #regular expression
 
-DEBUG=True
+DEBUG=False
 
 string_conexao='postgresql+psycopg2://postgres:postgres@prata04.cnj.jus.br:5432/MDM'
 symilarity_threshold = .9
@@ -43,17 +43,20 @@ def similariedade_total(matriz, df_vert, df_hori, nome_chave_id, id_vert, id_hor
         valor_formatado = '-' 
     return valor_formatado
 
-def investiga(cnpjs):
+def investiga(cnpjs, cpfs):
 
-    cnpjs_processado = processar_cnpjs(cnpjs) 
-    cnpjs_list = cnpjs_processado.split(",")
-    cnpj_alvo = [cnpj.strip() for cnpj in cnpjs_list if cnpj.strip()]
-
+    cnpj_alvo = processar_cnpjs(cnpjs).split(",")
+    cpfs = cpfs if cpfs is not None else ""
+    if cpfs.strip():  # Verifica se cpfs não é vazio ou apenas espaços
+        cpf_alvo = processar_cpfs(cpfs).split(",")
+    else:
+        cpf_alvo = []  # Inicializa como lista vazia
+    
     # Cria uma string de conexão
     engine = create_engine(string_conexao)
 
     # consulta empresas alvo no banco de dados
-    socios_alvo_final = consulta_socios_alvo(cnpj_alvo, engine)
+    socios_alvo_final = consulta_socios_alvo(cnpj_alvo, engine, cpf_alvo)
     if DEBUG:
         print("Consultei sócios alvos", flush=True)
 
@@ -207,3 +210,10 @@ def processar_cnpjs(cnpj_input):
         for cnpj in cnpj_input.split(",")
     ]
     return ",".join(cnpjs_processados)  # Junta os valores separados por vírgula
+
+def processar_cpfs(cpf_input):
+    cpfs_processados = [
+        re.sub(r"\D", "", cpf)[:11].zfill(14)  # Remove não numéricos, pega os 11 primeiros e completa com zeros à esquerda até 14 posições
+        for cpf in cpf_input.split(",")
+    ]
+    return ",".join(cpfs_processados)  # Junta os valores separados por vírgula
